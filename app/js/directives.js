@@ -3235,6 +3235,7 @@ angular.module('myApp.directives', ['myApp.filters'])
         var chat = AppChatsManager.getChat(chatID)
         if (chat.participants_count) {
           participantsCount = chat.participants_count
+          console.log("participantsCount",participantsCount)
         }
         update()
         if (!chatID || AppChatsManager.isChannel(chatID) && participantsCount) {

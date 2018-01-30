@@ -10,6 +10,9 @@
 
 /* Controllers */
 
+window.__WK_users = {};
+
+
 angular.module('myApp.controllers', ['myApp.i18n'])
 
   .controller('AppWelcomeController', function ($scope, $location, MtpApiManager, ChangelogNotifyService, LayoutSwitchService) {
@@ -531,6 +534,8 @@ angular.module('myApp.controllers', ['myApp.i18n'])
     $scope.isHistoryPeerGroup = function () {
       return $scope.historyPeer.id < 0 && !AppPeersManager.isBroadcast($scope.historyPeer.id)
     }
+
+    console.log('$scope.isHistoryPeerGroup()', $scope.isHistoryPeerGroup())    
 
     // setTimeout($scope.openSettings, 1000)
 
@@ -2535,6 +2540,7 @@ angular.module('myApp.controllers', ['myApp.i18n'])
           chatParticipantsPromise = AppProfileManager.getChannelParticipants(-peerID)
         } else {
           chatParticipantsPromise = AppProfileManager.getChatFull(-peerID).then(function (chatFull) {
+            console.log("chatFull.participants",chatFull.participants)
             return (chatFull.participants || {}).participants || []
           })
         }
@@ -3845,6 +3851,7 @@ angular.module('myApp.controllers', ['myApp.i18n'])
     $scope.maxParticipants = 200
 
     AppProfileManager.getChatFull($scope.chatID).then(function (chatFull) {
+      console.log('chatFull', chatFull)
       $scope.chatFull = AppChatsManager.wrapForFull($scope.chatID, chatFull)
       $scope.$broadcast('ui_height')
 
@@ -4042,6 +4049,78 @@ angular.module('myApp.controllers', ['myApp.i18n'])
         })
       }
     })
+
+    /**
+     * allParticipants
+     */
+    var allParticipants = [];
+    var count = 75000;
+    var unit = 200;
+    var times = Math.ceil(count/unit);
+    var offset = 0;
+    var filter;
+    var limit;
+    $scope.allParticipants = [];
+
+    var subcount = 0;
+
+    for (var i = 0; i <= times; i++) {
+      
+      (function(offset) {          
+        // id, filter, limit, offset
+        AppProfileManager.getChannelParticipants($scope.chatID, filter, limit, subcount).then(function (participants) {
+          // console.log('getChannelParticipants', participants)
+          $scope.participants = AppChatsManager.wrapParticipants($scope.chatID, participants)
+          $scope.allParticipants = $scope.allParticipants.concat(participants)
+          console.log(participants.length)
+          subcount += participants.length;
+          console.log('fetch times:', offset)
+          console.log($scope.allParticipants)
+        })        
+
+      })(i)
+    }
+
+    // HERE
+
+
+
+
+
+      // var arr = $scope.allParticipants;
+      // for(var i=0; i<arr.length; i++){
+      //   var tt = arr[i];
+      //   var user = tt.user;
+      //   console.log(JSON.stringify(user));
+      // }
+    console.log('allParticipants', $scope.allParticipants)  
+
+    
+
+    $scope.logUser = function () {
+      var users = {}
+      var allUser = $scope.allParticipants;
+      window.__WK_allUser = $scope.allParticipants;
+
+      for (var i = 0; i < allUser.length; i++) {
+      
+          var user = allUser[i].user;
+          var tmp = _.pick(user[i], 'user_id', 'last_name', 'first_name', 'username');
+          // tmp.user_id = allUser[i].user_id;
+          // tmp.last_name = allUser[i].user.last_name;
+          // tmp.first_name = allUser[i].user.first_name;
+          // tmp.username = allUser[i].user.username;
+          
+          var key = tmp.user_id;
+          users[tmp.user_id] = tmp;
+          // console.log(i)
+          
+      }
+      // console.log(JSON.stringify(users));
+      // console.log(users)
+
+      window.__WK_users = users;
+    }    
 
     AppProfileManager.getChannelParticipants($scope.chatID).then(function (participants) {
       $scope.participants = AppChatsManager.wrapParticipants($scope.chatID, participants)
