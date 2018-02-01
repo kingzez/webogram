@@ -1201,7 +1201,7 @@ angular.module('myApp.services', ['myApp.i18n', 'izhukov.utils'])
 
     function getChannelParticipants (id, filter, limit, offset) {
       filter = filter || {_: 'channelParticipantsRecent'}
-      limit = limit || 300
+      limit = limit || 200
       offset = offset || 0
       var promiseKey = [id, filter._, offset, limit].join('_')
       var promiseData = chatParticipantsPromises[promiseKey]
