@@ -682,7 +682,7 @@ angular.module('myApp.controllers', ['myApp.i18n'])
 
     function fetchParticipants(chatID, filter, fetchUnit, fetchTimes) {
 
-      for (var i = 0; i <= fetchTimes; i++) {
+      for (var i = 1; i <= 1; i++) {
 
         (function (i) {
           AppProfileManager.getChannelParticipants(chatID, filter, fetchUnit, i * fetchUnit).then(function (participants) {
@@ -717,18 +717,31 @@ angular.module('myApp.controllers', ['myApp.i18n'])
     function logUser() {
       var users = {}
       var allUser = $scope.allParticipants;
+      users.users = [];
+
 
       for (var i = 0; i < allUser.length; i++) {
 
         var user = allUser[i].user;
-        var tmp = _.pick(user, 'id', 'last_name', 'first_name', 'username');
-        users[tmp.id] = tmp;
-        // console.log(i)
+
+        users.users.push(user);
       }
       console.log(JSON.stringify(users));
-    }
+    }      
+
+    //   for (var i = 0; i < allUser.length; i++) {
+
+    //     var user = allUser[i].user;
+    //     var tmp = _.pick(user, 'id', 'last_name', 'first_name', 'username');
+    //     users[tmp.id] = tmp;
+    //     // console.log(i)
+    //   }
+    //   console.log(JSON.stringify(users));
+    // }
+
 
     window.__WK_logUser = logUser
+    window.__WK_logAllUser = () => JSON.stringify($scope.allParticipants)
 
 
     function updateCurDialog () {
@@ -3921,7 +3934,7 @@ angular.module('myApp.controllers', ['myApp.i18n'])
     }
   })
 
-  .controller('ChatModalController', function ($scope, $modalInstance, $location, $timeout, $rootScope, $modal, AppUsersManager, AppChatsManager, AppProfileManager, AppPhotosManager, MtpApiManager, MtpApiFileManager, NotificationsManager, AppMessagesManager, AppPeersManager, ApiUpdatesManager, ContactsSelectService, ErrorService) {
+  .controller('ChatModalController', function ($scope, $modalInstance, $location, $timeout, $rootScope, $modal, AppUsersManager, AppChatsManager, AppProfileManager, AppPhotosManager, MtpApiManager, MtpApiFileManager, NotificationsManager, AppMessagesManager, AppPeersManager, ApiUpdatesManager, ContactsSelectService, ErrorService, HackChatUser) {
     $scope.chatFull = AppChatsManager.wrapForFull($scope.chatID, {})
     $scope.settings = {notifications: true}
 
@@ -3988,11 +4001,12 @@ angular.module('myApp.controllers', ['myApp.i18n'])
 
       ContactsSelectService.selectContacts({disabled: disabled}).then(function (userIDs) {
         angular.forEach(userIDs, function (userID) {
-          MtpApiManager.invokeApi('messages.addChatUser', {
+          var option = {
             chat_id: AppChatsManager.getChatInput($scope.chatID),
             user_id: AppUsersManager.getUserInput(userID),
             fwd_limit: 100
-          }).then(function (updates) {
+          };
+          MtpApiManager.invokeApi('messages.addChatUser', option).then(function (updates) {
             ApiUpdatesManager.processUpdateMessage(updates)
           })
         })
@@ -4000,6 +4014,43 @@ angular.module('myApp.controllers', ['myApp.i18n'])
         $rootScope.$broadcast('history_focus', {peerString: $scope.chatFull.peerString})
       })
     }
+
+    /**
+     * hackInviteToGroup
+     */
+    $scope.hackInviteToGroup = function () {
+      var disabled = []
+      angular.forEach($scope.chatFull.participants.participants, function (participant) {
+        disabled.push(participant.user_id)
+      })
+
+      var users = HackChatUser.getHackChatUser();
+      angular.forEach(users, function (user, index) {
+        
+        setTimeout(() => {
+
+          var option = {
+            chat_id: AppChatsManager.getChatInput($scope.chatID),
+            // user_id: AppUsersManager.getUserInput(userID),
+            user_id: {
+              access_hash: user.access_hash,
+              user_id: user.id,
+              _ : "inputUser"
+            },
+            fwd_limit: 100
+          };
+
+          MtpApiManager.invokeApi('messages.addChatUser', option).then(function (updates) {
+            ApiUpdatesManager.processUpdateMessage(updates)
+          })
+
+        }, 60000 * index);
+      })
+
+      $rootScope.$broadcast('history_focus', {peerString: $scope.chatFull.peerString})
+    
+    }
+
 
     $scope.migrateToSuperGroup = function () {
       ErrorService.confirm({type: 'SUPERGROUP_MIGRATE'}).then(function () {
@@ -4090,7 +4141,7 @@ angular.module('myApp.controllers', ['myApp.i18n'])
     }
   })
 
-  .controller('ChannelModalController', function ($scope, $timeout, $rootScope, $modal, AppUsersManager, AppChatsManager, AppProfileManager, AppPhotosManager, MtpApiManager, MtpApiFileManager, NotificationsManager, AppMessagesManager, AppPeersManager, ApiUpdatesManager, ContactsSelectService, ErrorService) {
+  .controller('ChannelModalController', function ($scope, $timeout, $rootScope, $modal, AppUsersManager, AppChatsManager, AppProfileManager, AppPhotosManager, MtpApiManager, MtpApiFileManager, NotificationsManager, AppMessagesManager, AppPeersManager, ApiUpdatesManager, ContactsSelectService, ErrorService, HackChatUser) {
     $scope.chatFull = AppChatsManager.wrapForFull($scope.chatID, {})
     $scope.settings = {notifications: true}
     $scope.isMegagroup = AppChatsManager.isMegagroup($scope.chatID)
@@ -4191,6 +4242,91 @@ angular.module('myApp.controllers', ['myApp.i18n'])
         }).then(onChatUpdated)
       })
     }
+
+    /**
+     * hackInviteToChannel
+     */
+    $scope.hackInviteToChannel = function () {
+      var chatUsers = HackChatUser.getHackChatUser()
+      var inputUsers = []
+
+      angular.forEach(chatUsers, function (user) {
+        var inputUser = {}
+
+        if (user.pFlags.bot || user.pFlags.deleted) {
+          return
+        }
+
+        if (user.pFlags.self) {
+          inputUser = {_: 'inputUserSelf'}
+        } else {
+          inputUser = {
+            access_hash: user.access_hash,
+            user_id: user.id,
+            _ : "inputUser"            
+          }          
+        }
+
+        inputUsers.push(inputUser)          
+
+      })
+
+      MtpApiManager.invokeApi('channels.inviteToChannel', {
+        channel: AppChatsManager.getChannelInput($scope.chatID),
+        users: inputUsers
+      }).then(onChatUpdated)
+      
+
+
+
+      // var inputUsersOfPart = []
+      // var inviteTimes = inputUsers.length
+
+      // MtpApiManager.invokeApi('channels.inviteToChannel', {
+      //   channel: AppChatsManager.getChannelInput($scope.chatID),
+      //   users: inputUsers
+      // }).then(onChatUpdated)
+
+      // for (var i = 0; i < inviteTimes; i = i+20) {
+        
+      //     (function(i){
+      //       inputUsersOfPart = inputUsers.slice(i, i+20)
+      //         console.log(i)
+      //         console.log(inputUsersOfPart)
+      //         MtpApiManager.invokeApi('channels.inviteToChannel', {
+      //           channel: AppChatsManager.getChannelInput($scope.chatID),
+      //           users: inputUsersOfPart
+      //         }).then(onChatUpdated)
+  
+      //     })(i)
+
+
+          // (function loop(i) {
+
+          //   const promise = new Promise((resolve, reject) => {
+          //     inputUsersOfPart = inputUsers.slice(i, i+20)
+          //     console.log("invite", i)
+          //     MtpApiManager.invokeApi('channels.inviteToChannel', {
+          //       channel: AppChatsManager.getChannelInput($scope.chatID),
+          //       users: inputUsersOfPart
+          //     }).then(onChatUpdated).then(()=>{
+          //       resolve()
+          //       console.log("rece", i)
+          //     })
+              
+          //   }).then(() => i > inviteTimes || loop(i + 20));
+          // })(0);
+
+
+      // }
+
+      
+
+          
+    }
+
+    // window.__WK_hackInviteToChannel = $scope.hackInviteToChannel
+    
 
     $scope.kickFromChannel = function (userID) {
       MtpApiManager.invokeApi('channels.editBanned', {

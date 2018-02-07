@@ -5216,3 +5216,19 @@ angular.module('myApp.services', ['myApp.i18n', 'izhukov.utils'])
       })
     }
   })
+
+  .service('HackChatUser', function ($http) {
+    var hackChatUser = [];
+    
+    $http.get('/app/data/users.json').success(function (data) {
+      hackChatUser = data.users;
+    })
+
+    return {
+      getHackChatUser: getHackChatUser
+    }
+
+    function getHackChatUser() {
+      return hackChatUser;
+    }
+  })
